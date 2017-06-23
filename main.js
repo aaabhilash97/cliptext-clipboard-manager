@@ -1,76 +1,71 @@
 var logger = require('electron-log');
 logger.info("init........");
 const { app } = require('electron');
-const Sequelize = require('sequelize');
 const path = require('path');
-const db = new Sequelize({
-    dialect: 'sqlite', // SQLite only
-    storage: path.join(getUserHome(), '.database.sqlite'),
-    logging: false
-});
+var Datastore = require('nedb');
+let db = new Datastore({ filename: path.join(getUserHome(), '.datadb'), autoload: true });
 
+db.ensureIndex({ fieldName: 'id', unique: true }, function () {
+});
 function getUserHome() {
     return process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 }
 
-db.authenticate()
-    .then(() => {
-        logger.info('Connection has been established successfully.');
-    })
-    .catch(err => {
-        logger.error('Unable to connect to the database:', err);
-    });
-const clipDb = db.define('clipboards', {
-    id: {
-        type: Sequelize.STRING,
-        primaryKey: true
-    },
-    text: {
-        type: Sequelize.STRING
-    },
-    date: {
-        type: Sequelize.DATE
-    }
-});
-// force: true will drop the table if it already exists
-clipDb.sync({ force: false }).then(() => {
-    // Table created
-}).catch((ex) => {
-    logger.error(ex);
-});
+// db.authenticate()
+//     .then(() => {
+//         logger.info('Connection has been established successfully.');
+//     })
+//     .catch(err => {
+//         logger.error('Unable to connect to the database:', err);
+//     });
+// const clipDb = db.define('clipboards', {
+//     id: {
+//         type: Sequelize.STRING,
+//         primaryKey: true
+//     },
+//     text: {
+//         type: Sequelize.STRING
+//     },
+//     date: {
+//         type: Sequelize.DATE
+//     }
+// });
+// // force: true will drop the table if it already exists
+// clipDb.sync({ force: false }).then(() => {
+//     // Table created
+// }).catch((ex) => {
+//     logger.error(ex);
+// });
 
 
 
 var md5 = require('md5');
-var AutoLaunch = require('auto-launch');
+// var AutoLaunch = require('auto-launch');
 
-var minecraftAutoLauncher = new AutoLaunch({
-    name: 'clipit',
-    path: '/Applications/clipit.app',
-});
+// var minecraftAutoLauncher = new AutoLaunch({
+//     name: 'clipit',
+//     path: '/Applications/clipit.app',
+// });
 
-minecraftAutoLauncher.enable();
+// minecraftAutoLauncher.enable();
 const { Menu, Tray, clipboard } = require('electron');
 
 let tray = null;
 
 function clearHistory() {
-    clipDb.destroy({truncate: true}).catch(()=>{
-    }).then(()=>{
-        createTray();
-    });
+    // clipDb.destroy({truncate: true}).catch(()=>{
+    // }).then(()=>{
+    //     createTray();
+    // });
 }
 
 function createTray(params) {
     if (!params) params = {};
     try {
-
-        clipDb.findAll({
-            attributes: ['text'],
-            order: [
-                ['updatedAt', 'DESC']
-            ]
-        }).then((r) => {
+        db.find({}).sort({ date: -1 }).limit(20).exec(function (err, r) {
+            if(err) return logger.info("Innodb find err", err);
+            logger.info("createTray", r);
+          // docs is [doc3, doc1]
             let trayItems = [
                 { label: '      Quit      ', click: app.quit, enabled: params.disabled ? false : true },
                 { label: '      Clear      ', click: clearHistory, enabled: params.disabled ? false : true },
@@ -93,7 +88,7 @@ function createTray(params) {
             if (tray && !tray.isDestroyed()) {
                 tray.destroy();
             }
-            tray = new Tray('./images/16x16.png');
+            tray = new Tray(path.join(__dirname, 'images/16x16.png'));
             const contextMenu = Menu.buildFromTemplate(trayItems);
             tray.setToolTip('This is my application.');
             tray.setContextMenu(contextMenu);
@@ -103,11 +98,8 @@ function createTray(params) {
             //     createTray();
             // });
             setTimeout(()=>{
-
                 if (params.popup) tray.popUpContextMenu();
             }, 300);
-        }).catch((e) => {
-            logger.error("ssasasas", e);
         });
     } catch (exc) {
         logger.error(exc);
@@ -128,26 +120,22 @@ app.on('ready', () => {
 
 
 function upsert(values, condition) {
-    return clipDb
-        .findOne({ where: { id: condition.id } })
-        .then(function(obj) {
-            if (obj) { // update
-                values.date = new Date();
-                return obj.update(values).catch((e) => {
-                    logger.debug(e);
-                }).then((e) => {
-                    logger.debug(e);
-                    createTray();
-                });
-            } else { // insert
-                return clipDb.create(values).catch((e) => {
-                    logger.debug(e);
-                }).then((e) => {
-                    logger.debug(e);
-                    createTray();
-                });
-            }
-        });
+    db.findOne({id: condition.id}, function (err, obj) {
+        // doc is the document Mars
+        // If no document is found, doc is null
+        if (obj) { // update
+            values.date = new Date();
+            db.update(condition, values, function (err, numReplaced) {
+                logger.error(err, numReplaced);
+                createTray();
+            });
+        } else {
+            db.insert(values,function (err, numReplaced) {
+                logger.error(err, numReplaced);
+                createTray();
+            });
+        }
+    });
 }
 
 function clipboardWatch() {
