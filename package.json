@@ -4,6 +4,7 @@
   "description": "Clipit for mac.",
   "main": "main.js",
   "scripts": {
+    "build": "build",
     "start": "electron ."
   },
   "build": {
@@ -12,20 +13,26 @@
       "*.js",
       "*.html",
       "package.json",
-      "node_modules"
+      "node_modules",
+      "images"
     ],
+    "mac": {
+      "icon": "./images/icon.icns"
+    },
     "asar": false
   },
   "author": "Abhilash Km (aaabhilash97@gmail.com)",
   "license": "ISC",
   "devDependencies": {
     "electron": "^1.6.11",
+    "electron-builder": "^19.8.0",
     "electron-rebuild": "^1.5.11"
   },
   "dependencies": {
     "auto-launch": "^5.0.1",
     "electron-log": "^2.2.6",
     "md5": "^2.2.1",
+    "nedb": "^1.8.0",
     "sequelize": "^4.2.0",
     "sqlite3": "^3.1.8"
   }
