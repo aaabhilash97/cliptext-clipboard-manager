@@ -1,10 +1,14 @@
 //export XDG_CURRENT_DESKTOP=Unity
+require("./updater.js");
 var logger = require('electron-log');
-logger.info("init........");
+logger.transports.file.level = 'error';
+logger.transports.console.level = 'debug';
+logger.debug("init........");
 const { app } = require('electron');
 const path = require('path');
 var Datastore = require('nedb');
 const fs = require('fs');
+const package_json = require("./package.json");
 const DB_DIR = path.join(getUserHome(), ".clipit");
 try {
     fs.accessSync(DB_DIR);
@@ -14,10 +18,9 @@ try {
 
 let db = new Datastore({ filename: path.join(DB_DIR, '.clipboarddb'), autoload: true });
 let prefDb = new Datastore({ filename: path.join(DB_DIR, '.clipboarddbpref'), autoload: true });
-db.ensureIndex({ fieldName: 'id', unique: true }, function () {
-});
-prefDb.ensureIndex({fieldName: 'type', unique: true }, function () {
-});
+db.ensureIndex({ fieldName: 'id', unique: true }, function() {});
+prefDb.ensureIndex({ fieldName: 'type', unique: true }, function() {});
+
 function getUserHome() {
     return process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 }
@@ -36,67 +39,42 @@ const { Menu, Tray, clipboard } = require('electron');
 let tray = null;
 
 function clearHistory() {
-    db.remove({}, { multi: true }, function (err, numRemoved) {
-        logger.debug("clear cliked", err, numRemoved);
+    db.remove({}, { multi: true }, function(err, numRemoved) {
+        if (err) logger.error('clearHistory: ', err);
+        logger.debug("clear cliked", numRemoved);
         createTray();
     });
 }
 
 let clipbiard_limit = 10;
 
-prefDb.find({type: "settings"}).exec(function(e, r){
-    if(e) return logger.debug(e);
-    if(r.length > 0){
+prefDb.find({ type: "settings" }).exec(function(e, r) {
+    if (e) return logger.error("get settings", e);
+    if (r.length > 0) {
         clipbiard_limit = r[0].limit;
         createTray();
     }
 });
 
-function limit(value){
-    clipbiard_limit= value.value;
-    upsert(prefDb, {type: "settings", limit: value.value}, {type: "settings"});
+function limit(value) {
+    clipbiard_limit = value.value;
+    upsert(prefDb, { type: "settings", limit: value.value }, { type: "settings" });
 }
 
 function createTray(params) {
     if (!params) params = {};
     try {
-        db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function (err, r) {
-            if(err) return logger.info("Innodb find err", err);
-            logger.info("createTray", r);
-          // docs is [doc3, doc1]
+        db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function(err, r) {
+            if (err) return logger.error("nedb find err", err);
             let trayItems = [
-                { label: 'Quit', click: app.quit, enabled: params.disabled ? false : true },
-                { label: 'Clear', click: clearHistory, enabled: params.disabled ? false : true },
+                { label: `                                     Clipit v${package_json.version}          `, enabled: false },
+                { label: `____________________Clipboard History_____________________`, enabled: false }
             ];
-            if(!params.disabled){
-                trayItems.push({label: "Clipboard Limit",submenu: [{label: '10',
-                    value: 10,
-                    click: limit,
-                    type: "radio",
-                    checked: clipbiard_limit == 10?true:false
-                },{
-                    label: '30',
-                    value: 30,
-                    click: limit,
-                    type: "radio",
-                    checked: clipbiard_limit == 30?true:false
-                },{
-                    label: 'unlimited',
-                    value: 300,
-                    click: limit,
-                    type: "radio",
-                    checked: clipbiard_limit == 300?true:false
 
-                }
-                ]});
-                trayItems.push({
-                    label: '___________________________________________________',
-                    enabled: false
-                });
-            }
             if (r.length === 0) {
                 trayItems.push({ label: 'clipboard is empty', enabled: false });
             }
+            let i = 1;
             for (let item of r) {
                 if (item.text) {
                     trayItems.push({
@@ -104,10 +82,38 @@ function createTray(params) {
                         value: item.text,
                         click: function(r) {
                             clipboard.writeText(r.value);
-                        }
+                        },
+                        accelerator: `Command+${i}`
                     });
+                    i++;
                 }
             }
+            trayItems.push({
+                label: '____________________________________________________________',
+                enabled: false
+            }, { label: 'Clear', click: clearHistory, accelerator: 'Command+Alt+c' }, {
+                label: "Clipboard Limit",
+                submenu: [{
+                    label: '10',
+                    value: 10,
+                    click: limit,
+                    type: "radio",
+                    checked: clipbiard_limit == 10 ? true : false
+                }, {
+                    label: '30',
+                    value: 30,
+                    click: limit,
+                    type: "radio",
+                    checked: clipbiard_limit == 30 ? true : false
+                }, {
+                    label: 'unlimited',
+                    value: 300,
+                    click: limit,
+                    type: "radio",
+                    checked: clipbiard_limit == 300 ? true : false
+
+                }]
+            }, { label: 'Quit', click: app.quit, accelerator: 'Command+Q' });
             if (tray && !tray.isDestroyed()) {
                 tray.destroy();
             }
@@ -116,11 +122,11 @@ function createTray(params) {
             tray.setToolTip('This is my application.');
             tray.setContextMenu(contextMenu);
             tray.setTitle("clipit");
-            // tray.on('click', () => {
-            //     logger.info('tray click');
-            //     createTray();
-            // });
-            setTimeout(()=>{
+            tray.on('close', () => {
+                logger.debug('tray click');
+                createTray();
+            });
+            setTimeout(() => {
                 if (params.popup) tray.popUpContextMenu();
             }, 300);
         });
@@ -143,18 +149,18 @@ app.on('ready', () => {
 
 
 function upsert(db, values, condition) {
-    db.findOne(condition, function (err, obj) {
+    db.findOne(condition, function(err, obj) {
         // doc is the document Mars
         // If no document is found, doc is null
         if (obj) { // update
             values.date = new Date();
-            db.update(condition, values, function (err, numReplaced) {
-                logger.error(err, numReplaced);
+            db.update(condition, values, function(err) {
+                if (err) logger.error("upsert update : ", err);
                 createTray();
             });
         } else {
-            db.insert(values,function (err, numReplaced) {
-                logger.error(err, numReplaced);
+            db.insert(values, function(err) {
+                if (err) logger.error("upsert insert : ", err);
                 createTray();
             });
         }
@@ -173,12 +179,12 @@ function clipboardWatch() {
                 "text": cur_clipboard,
                 date: new Date()
             };
-            upsert(db, doc, {id: doc.id});
+            upsert(db, doc, { id: doc.id });
         }
     }, 500);
 }
 
-if(process.platform == "darwin") app.dock.hide();
+if (process.platform == "darwin") app.dock.hide();
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
     // On macOS it is common for applications and their menu bar
