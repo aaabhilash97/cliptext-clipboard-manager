@@ -1,3 +1,4 @@
+//export XDG_CURRENT_DESKTOP=Unity
 var logger = require('electron-log');
 logger.info("init........");
 const { app } = require('electron');
