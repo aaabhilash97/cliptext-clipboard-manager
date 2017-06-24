@@ -4,6 +4,7 @@
   "description": "Clipit for mac.",
   "main": "main.js",
   "scripts": {
+    "build": "build",
     "start": "electron ."
   },
   "build": {
@@ -21,6 +22,7 @@
   "license": "ISC",
   "devDependencies": {
     "electron": "^1.6.11",
+    "electron-builder": "^19.8.0",
     "electron-rebuild": "^1.5.11"
   },
   "dependencies": {
