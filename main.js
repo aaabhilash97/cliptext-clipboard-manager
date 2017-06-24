@@ -73,7 +73,7 @@ function createTray(params) {
         db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function(err, r) {
             if (err) return logger.error("nedb find err", err);
             let trayItems = [
-                { label: `                                    cliptext v${package_json.version}          `, enabled: false },
+                { label: `                                  cliptext v${package_json.version}          `, enabled: false },
                 { label: `____________________Clipboard History_________________________`, enabled: false }
             ];
 
