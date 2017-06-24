@@ -9,7 +9,7 @@ const path = require('path');
 var Datastore = require('nedb');
 const fs = require('fs');
 const package_json = require("./package.json");
-const DB_DIR = path.join(getUserHome(), ".clipit");
+const DB_DIR = path.join(getUserHome(), ".cliptext");
 try {
     fs.accessSync(DB_DIR);
 } catch (err) {
@@ -28,15 +28,15 @@ function getUserHome() {
 var md5 = require('md5');
 var AutoLaunch = require('auto-launch');
 
-var clipit = new AutoLaunch({
-    name: 'clipit',
+var cliptext = new AutoLaunch({
+    name: 'cliptext',
     mac: {
         useLaunchAgent: true
     }
 });
 if(process.env.ENV !== "development"){
-    clipit.isEnabled().then((enabled)=>{
-        if(!enabled) clipit.enable();
+    cliptext.isEnabled().then((enabled)=>{
+        if(!enabled) cliptext.enable();
     });
 }
 
@@ -73,7 +73,7 @@ function createTray(params) {
         db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function(err, r) {
             if (err) return logger.error("nedb find err", err);
             let trayItems = [
-                { label: `                                    Clipit v${package_json.version}          `, enabled: false },
+                { label: `                                    cliptext v${package_json.version}          `, enabled: false },
                 { label: `____________________Clipboard History_________________________`, enabled: false }
             ];
 
@@ -124,7 +124,7 @@ function createTray(params) {
             const contextMenu = Menu.buildFromTemplate(trayItems);
             tray.setToolTip('This is my application.');
             tray.setContextMenu(contextMenu);
-            tray.setTitle("clipit");
+            tray.setTitle("cliptext");
             tray.on('close', () => {
                 logger.debug('tray click');
                 createTray();

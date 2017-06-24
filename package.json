@@ -1,14 +1,14 @@
 {
-  "name": "clipit",
+  "name": "cliptext",
   "version": "1.0.0",
-  "description": "Clipit for mac.",
+  "description": "cliptext for mac.",
   "main": "main.js",
   "scripts": {
     "build": "build",
     "start": "electron ."
   },
   "build": {
-    "appId": "com.smartron.clipit",
+    "appId": "com.xxxxxxx.cliptext",
     "files": [
       "*.js",
       "*.html",
