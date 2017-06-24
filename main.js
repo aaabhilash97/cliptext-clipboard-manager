@@ -4,11 +4,19 @@ logger.info("init........");
 const { app } = require('electron');
 const path = require('path');
 var Datastore = require('nedb');
-let db = new Datastore({ filename: path.join(getUserHome(), '.clipboarddb'), autoload: true });
-let prefDb = new Datastore({ filename: path.join(getUserHome(), '.clipboarddbpref'), autoload: true });
+const fs = require('fs');
+const DB_DIR = path.join(getUserHome(), ".clipit");
+try {
+    fs.accessSync(DB_DIR);
+} catch (err) {
+    fs.mkdirSync(DB_DIR);
+}
+
+let db = new Datastore({ filename: path.join(DB_DIR, '.clipboarddb'), autoload: true });
+let prefDb = new Datastore({ filename: path.join(DB_DIR, '.clipboarddbpref'), autoload: true });
 db.ensureIndex({ fieldName: 'id', unique: true }, function () {
 });
-prefDb.ensureIndex({ fieldName: 'limit', unique: true }, function () {
+prefDb.ensureIndex({fieldName: 'type', unique: true }, function () {
 });
 function getUserHome() {
     return process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
@@ -36,15 +44,17 @@ function clearHistory() {
 
 let clipbiard_limit = 10;
 
-prefDb.find({}).exec(function(e, r){
-    if(e) return console.log(e);
-    clipbiard_limit = r[0].limit;
-    createTray();
+prefDb.find({type: "settings"}).exec(function(e, r){
+    if(e) return logger.debug(e);
+    if(r.length > 0){
+        clipbiard_limit = r[0].limit;
+        createTray();
+    }
 });
 
 function limit(value){
     clipbiard_limit= value.value;
-    upsert(prefDb, {limit: value.value}, {limit: value.value});
+    upsert(prefDb, {type: "settings", limit: value.value}, {type: "settings"});
 }
 
 function createTray(params) {
@@ -57,25 +67,36 @@ function createTray(params) {
             let trayItems = [
                 { label: 'Quit', click: app.quit, enabled: params.disabled ? false : true },
                 { label: 'Clear', click: clearHistory, enabled: params.disabled ? false : true },
-                {label: "Clipboard Limit", submenu: [{label: '10',
-                                            value: 10,
-                                            click: limit
-                                            },{
-                                            label: '30',
-                                            value: 30,
-                                            click: limit
-                                            },{
-                                            label: 'unlimited',
-                                            value: 300,
-                                                click: limit
-
-                                        }
-                                    ]},
-            {
-                label: '___________________________________________________',
-                enabled: false
-            },
             ];
+            if(!params.disabled){
+                trayItems.push({label: "Clipboard Limit",submenu: [{label: '10',
+                    value: 10,
+                    click: limit,
+                    type: "radio",
+                    checked: clipbiard_limit == 10?true:false
+                },{
+                    label: '30',
+                    value: 30,
+                    click: limit,
+                    type: "radio",
+                    checked: clipbiard_limit == 30?true:false
+                },{
+                    label: 'unlimited',
+                    value: 300,
+                    click: limit,
+                    type: "radio",
+                    checked: clipbiard_limit == 300?true:false
+
+                }
+                ]});
+                trayItems.push({
+                    label: '___________________________________________________',
+                    enabled: false
+                });
+            }
+            if (r.length === 0) {
+                trayItems.push({ label: 'clipboard is empty', enabled: false });
+            }
             for (let item of r) {
                 if (item.text) {
                     trayItems.push({
@@ -86,9 +107,6 @@ function createTray(params) {
                         }
                     });
                 }
-            }
-            if (trayItems.length == 4) {
-                trayItems.push({ label: 'clipboard is empty', enabled: false });
             }
             if (tray && !tray.isDestroyed()) {
                 tray.destroy();
@@ -125,7 +143,7 @@ app.on('ready', () => {
 
 
 function upsert(db, values, condition) {
-    db.findOne({id: condition.id}, function (err, obj) {
+    db.findOne(condition, function (err, obj) {
         // doc is the document Mars
         // If no document is found, doc is null
         if (obj) { // update
@@ -155,7 +173,7 @@ function clipboardWatch() {
                 "text": cur_clipboard,
                 date: new Date()
             };
-            upsert(db, doc, doc);
+            upsert(db, doc, {id: doc.id});
         }
     }, 500);
 }

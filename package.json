@@ -16,6 +16,9 @@
       "node_modules",
       "images"
     ],
+    "mac": {
+      "icon": "./images/icon.icns"
+    },
     "asar": false
   },
   "author": "Abhilash Km (aaabhilash97@gmail.com)",
