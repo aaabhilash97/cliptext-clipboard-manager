@@ -29,10 +29,16 @@ var md5 = require('md5');
 var AutoLaunch = require('auto-launch');
 
 var clipit = new AutoLaunch({
-    name: 'clipit'
+    name: 'clipit',
+    mac: {
+        useLaunchAgent: true
+    }
 });
-
-clipit.enable();
+if(process.env.ENV !== "development"){
+    clipit.isEnabled().then((enabled)=>{
+        if(!enabled) clipit.enable();
+    });
+}
 
 const { Menu, Tray, clipboard } = require('electron');
 
@@ -67,8 +73,8 @@ function createTray(params) {
         db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function(err, r) {
             if (err) return logger.error("nedb find err", err);
             let trayItems = [
-                { label: `                                     Clipit v${package_json.version}          `, enabled: false },
-                { label: `____________________Clipboard History_____________________`, enabled: false }
+                { label: `                                    Clipit v${package_json.version}          `, enabled: false },
+                { label: `____________________Clipboard History_________________________`, enabled: false }
             ];
 
             if (r.length === 0) {
@@ -89,9 +95,9 @@ function createTray(params) {
                 }
             }
             trayItems.push({
-                label: '____________________________________________________________',
+                label: '_______________________________________________________________',
                 enabled: false
-            }, { label: 'Clear', click: clearHistory, accelerator: 'Command+Alt+c' }, {
+            }, { label: 'Clear All', click: clearHistory, accelerator: 'Command+Alt+c' }, {
                 label: "Clipboard Limit",
                 submenu: [{
                     label: '10',
@@ -114,10 +120,7 @@ function createTray(params) {
 
                 }]
             }, { label: 'Quit', click: app.quit, accelerator: 'Command+Q' });
-            if (tray && !tray.isDestroyed()) {
-                tray.destroy();
-            }
-            tray = new Tray(path.join(__dirname, 'images/16x16.png'));
+            if(!tray || tray.isDestroyed()) tray = new Tray(path.join(__dirname, 'images/16x16.png'));
             const contextMenu = Menu.buildFromTemplate(trayItems);
             tray.setToolTip('This is my application.');
             tray.setContextMenu(contextMenu);
