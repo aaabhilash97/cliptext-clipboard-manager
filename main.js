@@ -63,7 +63,8 @@ prefDb.find({ type: "settings" }).exec(function(e, r) {
     }
 });
 
-function limit(value) {
+function limit_fn(value) {
+    console.log("limit clicked");
     clipbiard_limit = value.value;
     upsert(prefDb, { type: "settings", limit: value.value }, { type: "settings" });
 }
@@ -108,19 +109,19 @@ function createTray(params) {
                 submenu: [{
                     label: '10',
                     value: 10,
-                    click: limit,
+                    click: limit_fn,
                     type: "radio",
                     checked: clipbiard_limit == 10 ? true : false
                 }, {
                     label: '30',
                     value: 30,
-                    click: limit,
+                    click: limit_fn,
                     type: "radio",
                     checked: clipbiard_limit == 30 ? true : false
                 }, {
                     label: 'unlimited',
                     value: 300,
-                    click: limit,
+                    click: limit_fn,
                     type: "radio",
                     checked: clipbiard_limit == 300 ? true : false
 
