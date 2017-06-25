@@ -1,6 +1,6 @@
 {
   "name": "cliptext",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "cliptext for mac.",
   "main": "main.js",
   "scripts": {
