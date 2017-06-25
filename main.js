@@ -16,10 +16,11 @@ try {
     fs.mkdirSync(DB_DIR);
 }
 
-let db = new Datastore({ filename: path.join(DB_DIR, '.clipboarddb'), autoload: true });
-let prefDb = new Datastore({ filename: path.join(DB_DIR, '.clipboarddbpref'), autoload: true });
+let db = new Datastore({ filename: path.join(DB_DIR, '/.clipboarddb'), autoload: true });
+let prefDb = new Datastore({ filename: path.join(DB_DIR, '/.clipboarddbpref'), autoload: true });
 db.ensureIndex({ fieldName: 'id', unique: true }, function() {});
 prefDb.ensureIndex({ fieldName: 'type', unique: true }, function() {});
+db.ensureIndex({ fieldName: 'index', unique: true }, function() {});
 
 function getUserHome() {
     return process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
@@ -67,6 +68,13 @@ function limit(value) {
     upsert(prefDb, { type: "settings", limit: value.value }, { type: "settings" });
 }
 
+function clickFn(r) {
+    db.findOne({index: r.index_c}, function(err, obj) {
+        if(err) return logger.error("clickFn err", err);
+        clipboard.writeText(obj.text);
+    });
+}
+
 function createTray(params) {
     if (!params) params = {};
     try {
@@ -85,12 +93,8 @@ function createTray(params) {
                 if (item.text) {
                     trayItems.push({
                         label: item.text.slice(0, 50),
-                        id: item.id,
-                        click: function(r) {
-                            db.findOne({id: r.id}, function(err, obj) {
-                                clipboard.writeText(obj.text);
-                            });
-                        },
+                        index_c: item.index,
+                        click: clickFn,
                         accelerator: `Command+${i}`
                     });
                     i++;
@@ -154,21 +158,34 @@ app.on('ready', () => {
 
 
 function upsert(db, values, condition) {
-    db.findOne(condition, function(err, obj) {
-        // doc is the document Mars
-        // If no document is found, doc is null
-        if (obj) { // update
-            values.date = new Date();
-            db.update(condition, values, function(err) {
-                if (err) logger.error("upsert update : ", err);
+    // db.findOne(condition, function(err, obj) {
+    //     // doc is the document Mars
+    //     // If no document is found, doc is null
+    //     if (obj) { // update
+    //         
+    //     } else {
+    //         
+    //     }
+    // });
+    db.count({}, function (err, count) {
+        if(err) return logger.error("count error", err);
+        values.index = count + 1;
+        db.insert(values, function(err) {
+            if (err && err.errorType=='uniqueViolated'){
+                db.findOne(condition, function(e, obj){
+                    if(e || !obj) return logger.error("findOne/upsert error", e);
+                    obj.date = new Date();
+                    db.update(condition, obj, {upsert: true}, function(err) {
+                        if (err) return logger.error("upsert update : ", err);
+                        createTray();
+                    }); 
+                });
+            }else if(err){
+                logger.error("upsert insert : ", err);
+            }else{
                 createTray();
-            });
-        } else {
-            db.insert(values, function(err) {
-                if (err) logger.error("upsert insert : ", err);
-                createTray();
-            });
-        }
+            }
+        });
     });
 }
 
