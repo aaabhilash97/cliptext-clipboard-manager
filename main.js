@@ -70,7 +70,7 @@ function limit(value) {
 
 function clickFn(r) {
     db.findOne({index: r.index_c}, function(err, obj) {
-        if(err) return logger.error("clickFn err", err);
+        if(err || !obj) return logger.error("clickFn err", err);
         clipboard.writeText(obj.text);
     });
 }
@@ -81,7 +81,7 @@ function createTray(params) {
         db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function(err, r) {
             if (err) return logger.error("nedb find err", err);
             let trayItems = [
-                { label: `                                  cliptext v${package_json.version}          `, enabled: false },
+                { label: `cliptext v${package_json.version}          `, enabled: false },
                 { label: `____________________Clipboard History_________________________`, enabled: false }
             ];
 
@@ -158,15 +158,6 @@ app.on('ready', () => {
 
 
 function upsert(db, values, condition) {
-    // db.findOne(condition, function(err, obj) {
-    //     // doc is the document Mars
-    //     // If no document is found, doc is null
-    //     if (obj) { // update
-    //         
-    //     } else {
-    //         
-    //     }
-    // });
     db.count({}, function (err, count) {
         if(err) return logger.error("count error", err);
         values.index = count + 1;
