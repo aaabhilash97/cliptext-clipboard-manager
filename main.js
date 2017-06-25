@@ -85,9 +85,11 @@ function createTray(params) {
                 if (item.text) {
                     trayItems.push({
                         label: item.text.slice(0, 50),
-                        value: item.text,
+                        id: item.id,
                         click: function(r) {
-                            clipboard.writeText(r.value);
+                            db.findOne({id: r.id}, function(err, obj) {
+                                clipboard.writeText(obj.text);
+                            });
                         },
                         accelerator: `Command+${i}`
                     });
