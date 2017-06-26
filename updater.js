@@ -1,5 +1,5 @@
 const package_json = require("./package.json");
-const autoUpdater = require('auto-updater');
+const {autoUpdater} = require('electron');
 const got = require('got');
 const appVersion = package_json.version;
 var semver = require('semver');
@@ -12,10 +12,10 @@ let options = {
 
 try{
     got(options.repo).then((data)=>{
-        data = JSON.parse(data);
+        data = JSON.parse(data.body);
         let regex = /-(\d+\.\d+\.\d+)-/;
         let version = data.url.match(regex);
-        if(semver.gt(version, appVersion)){
+        if(semver.gt(version[1], appVersion)){
             autoUpdater.setFeedURL(options.repo);
             autoUpdater.on("checking-for-update", ()=>{
                 logger.info("checking for updates");

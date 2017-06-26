@@ -1,5 +1,4 @@
 //export XDG_CURRENT_DESKTOP=Unity
-require("./updater.js");
 var logger = require('electron-log');
 logger.transports.file.level = 'error';
 logger.transports.console.level = 'debug';
@@ -134,11 +133,11 @@ function createTray(params) {
                     type: "radio",
                     checked: clipbiard_limit == 30 ? true : false
                 }, {
-                    label: '40',
-                    value: 40,
+                    label: '50',
+                    value: 50,
                     click: limit_fn,
                     type: "radio",
-                    checked: clipbiard_limit == 40 ? true : false
+                    checked: clipbiard_limit == 50 ? true : false
                 }, {
                     label: 'unlimited',
                     value: 300,
@@ -183,6 +182,7 @@ app.on('ready', () => {
         });
     });
     clipboardWatch();
+    require("./updater.js");
 });
 
 
@@ -228,7 +228,7 @@ function clipboardWatch() {
     }, 500);
 }
 
-if (process.platform == "darwin") app.dock.hide();
+if (process.platform == "darwin" && process.env.ENV!="development") app.dock.hide();
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
     // On macOS it is common for applications and their menu bar
