@@ -11,28 +11,30 @@ let options = {
 };
 
 try{
-    got(options.repo).then((data)=>{
-        data = JSON.parse(data.body);
-        let regex = /-(\d+\.\d+\.\d+)-/;
-        let version = data.url.match(regex);
-        if(semver.gt(version[1], appVersion)){
-            autoUpdater.setFeedURL(options.repo);
-            autoUpdater.on("checking-for-update", ()=>{
-                logger.info("checking for updates");
-            });
-            autoUpdater.on("update-available", ()=>{
-                logger.info("update-available");
-            });
-            autoUpdater.on("update-not-available", ()=>{
-                logger.info("update-not-available");
-            });
-            autoUpdater.on("update-downloaded", ()=>{
-                autoUpdater.quitAndInstall();
-            });
-            autoUpdater.checkForUpdates();
-        }
-    }).catch((ex)=>{
-        logger.error(ex);
+    setInterval(()=>{
+        got(options.repo).then((data)=>{
+            data = JSON.parse(data.body);
+            let regex = /-(\d+\.\d+\.\d+)-/;
+            let version = data.url.match(regex);
+            if(semver.gt(version[1], appVersion)){
+                autoUpdater.setFeedURL(options.repo);
+                autoUpdater.on("checking-for-update", ()=>{
+                    logger.info("checking for updates");
+                });
+                autoUpdater.on("update-available", ()=>{
+                    logger.info("update-available");
+                });
+                autoUpdater.on("update-not-available", ()=>{
+                    logger.info("update-not-available");
+                });
+                autoUpdater.on("update-downloaded", ()=>{
+                    autoUpdater.quitAndInstall();
+                });
+                autoUpdater.checkForUpdates();
+            }
+        }).catch((ex)=>{
+            logger.error(ex);
+        }, 10000);
     });
 }catch(ex){
     logger.error("update error", ex);
