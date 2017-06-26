@@ -34,8 +34,8 @@ try{
             }
         }).catch((ex)=>{
             logger.error(ex);
-        }, 10000);
-    });
+        });
+    }, 10000);
 }catch(ex){
     logger.error("update error", ex);
 }
