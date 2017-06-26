@@ -29,17 +29,13 @@ function getUserHome() {
 var md5 = require('md5');
 var AutoLaunch = require('auto-launch');
 
-var cliptext = new AutoLaunch({
+var cliptext_auto_launch = new AutoLaunch({
     name: 'cliptext',
     mac: {
         useLaunchAgent: true
     }
 });
-if(process.env.ENV !== "development"){
-    cliptext.isEnabled().then((enabled)=>{
-        if(!enabled) cliptext.enable();
-    });
-}
+
 
 const { Menu, Tray, clipboard } = require('electron');
 
@@ -54,19 +50,35 @@ function clearHistory() {
 }
 
 let clipbiard_limit = 10;
+let auto_start = true;
 
 prefDb.find({ type: "settings" }).exec(function(e, r) {
     if (e) return logger.error("get settings", e);
     if (r.length > 0) {
         clipbiard_limit = r[0].limit;
+        auto_start = r[0].auto_start;
+        if(process.env.ENV !== "development" && auto_start){
+            cliptext_auto_launch.isEnabled().then((enabled)=>{
+                if(!enabled) cliptext_auto_launch.enable();
+            });
+        }else{
+            cliptext_auto_launch.disable();
+        }
         createTray();
     }
 });
 
 function limit_fn(value) {
-    console.log("limit clicked");
     clipbiard_limit = value.value;
     upsert(prefDb, { type: "settings", limit: value.value }, { type: "settings" });
+}
+
+function setAutostart() {
+    prefDb.findOne({type: "settings"}, function(e, r){
+        if(e) return logger.error("error setAutostart", e);
+        auto_start = !(r.auto_start);
+        upsert(prefDb, { type: "settings", auto_start: auto_start }, { type: "settings" });
+    });
 }
 
 function clickFn(r) {
@@ -119,6 +131,12 @@ function createTray(params) {
                     type: "radio",
                     checked: clipbiard_limit == 30 ? true : false
                 }, {
+                    label: '40',
+                    value: 40,
+                    click: limit_fn,
+                    type: "radio",
+                    checked: clipbiard_limit == 40 ? true : false
+                }, {
                     label: 'unlimited',
                     value: 300,
                     click: limit_fn,
@@ -126,7 +144,14 @@ function createTray(params) {
                     checked: clipbiard_limit == 300 ? true : false
 
                 }]
-            }, { label: 'Quit', click: app.quit, accelerator: 'Command+Q' });
+            }, {
+                label: "Settings", submenu: [{
+                    label: 'Launch on System startup',
+                    click: setAutostart,
+                    type: "radio",
+                    checked: auto_start?true:false
+                }]
+            },{ label: 'Quit', click: app.quit, accelerator: 'Command+Q' });
             if(!tray || tray.isDestroyed()) tray = new Tray(path.join(__dirname, 'images/16x16.png'));
             const contextMenu = Menu.buildFromTemplate(trayItems);
             tray.setToolTip('This is my application.');
@@ -170,7 +195,7 @@ function upsert(db, values, condition) {
                     db.update(condition, obj, {upsert: true}, function(err) {
                         if (err) return logger.error("upsert update : ", err);
                         createTray();
-                    }); 
+                    });
                 });
             }else if(err){
                 logger.error("upsert insert : ", err);
