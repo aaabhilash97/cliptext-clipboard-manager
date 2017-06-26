@@ -1,40 +1,39 @@
-const GhReleases = require('electron-gh-releases');
 const package_json = require("./package.json");
+const autoUpdater = require('auto-updater');
+const got = require('got');
+const appVersion = package_json.version;
+var semver = require('semver');
 var logger = require('electron-log');
 logger.transports.file.level = 'error';
 logger.transports.console.level = 'debug';
 let options = {
-    repo: 'aaabhilash97/cliptext',
-    currentVersion: package_json.version
+    repo: 'https://raw.githubusercontent.com/aaabhilash97/cliptext/master/auto_updater.json'
 };
 
 try{
-
-    const updater = new GhReleases(options);
-
-    // Check for updates
-    // `status` returns true if there is a new update available
-    setInterval(()=>{
-        updater.check((err, status) => {
-            if (!err && status) {
-                // Download the update
-                logger.info("update check status,", status);
-                updater.download();
-            }else{
-                logger.error("Failed to check update", err, status);
-            }
-        });
-    }, 10000);
-
-    // When an update has been downloaded
-    updater.on('update-downloaded', (info) => {
-        // Restart the app and install the update
-        logger.info("update downloaded", info);
-        updater.install();
+    got(options.repo).then((data)=>{
+        data = JSON.parse(data);
+        let regex = /-(\d+\.\d+\.\d+)-/;
+        let version = data.url.match(regex);
+        if(semver.gt(version, appVersion)){
+            autoUpdater.setFeedURL(options.repo);
+            autoUpdater.on("checking-for-update", ()=>{
+                logger.info("checking for updates");
+            });
+            autoUpdater.on("update-available", ()=>{
+                logger.info("update-available");
+            });
+            autoUpdater.on("update-not-available", ()=>{
+                logger.info("update-not-available");
+            });
+            autoUpdater.on("update-downloaded", ()=>{
+                autoUpdater.quitAndInstall();
+            });
+            autoUpdater.checkForUpdates();
+        }
+    }).catch((ex)=>{
+        logger.error(ex);
     });
-
-    // Access electrons autoUpdater
-    logger.info(updater.autoUpdater);
 }catch(ex){
     logger.error("update error", ex);
 }
