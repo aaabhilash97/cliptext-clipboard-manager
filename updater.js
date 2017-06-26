@@ -1,13 +1,30 @@
+const GhReleases = require('electron-gh-releases');
+const package_json = require("./package.json");
 var logger = require('electron-log');
 logger.transports.file.level = 'error';
 logger.transports.console.level = 'debug';
-try{
-    const {autoUpdater} = require('electron');
-    const appVersion = require('./package.json').version;
+let options = {
+    repo: 'aaabhilash97/cliptext',
+    currentVersion: package_json.version()
+};
 
-    var updateFeed = 'http://localhost:3000/updates/latest';
+const updater = new GhReleases(options);
 
-    autoUpdater.setFeedURL(updateFeed + '?v=' + appVersion);
-}catch(exc){
-    logger.error("update exception", exc);
-}
+// Check for updates
+// `status` returns true if there is a new update available
+updater.check((err, status) => {
+    if (!err && status) {
+        // Download the update
+        updater.download();
+    }
+});
+
+// When an update has been downloaded
+updater.on('update-downloaded', (info) => {
+    // Restart the app and install the update
+    logger.info("update downloaded", info);
+    updater.install();
+});
+
+// Access electrons autoUpdater
+updater.autoUpdater();
