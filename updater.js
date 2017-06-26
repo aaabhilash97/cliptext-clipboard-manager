@@ -18,7 +18,10 @@ try{
         updater.check((err, status) => {
             if (!err && status) {
                 // Download the update
+                logger.info("update check status,", status);
                 updater.download();
+            }else{
+                logger.error("Failed to check update", err, status);
             }
         });
     }, 10000);
