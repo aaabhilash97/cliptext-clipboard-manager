@@ -6,7 +6,7 @@ ClipText is a simple clipboard manager for os-x built with electron.
 
 Global shortcut for launching Clipboard history is ``` Cmd+Alt+h```
 
-You can find the latest build from ```release``` folder
+You can find the latest build from ```dist``` folder
 
 ### Screenshots:
 ![alt text][tray]
