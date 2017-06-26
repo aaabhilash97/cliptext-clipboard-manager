@@ -5,26 +5,31 @@ logger.transports.file.level = 'error';
 logger.transports.console.level = 'debug';
 let options = {
     repo: 'aaabhilash97/cliptext',
-    currentVersion: package_json.version()
+    currentVersion: package_json.version
 };
 
-const updater = new GhReleases(options);
+try{
 
-// Check for updates
-// `status` returns true if there is a new update available
-updater.check((err, status) => {
-    if (!err && status) {
-        // Download the update
-        updater.download();
-    }
-});
+    const updater = new GhReleases(options);
 
-// When an update has been downloaded
-updater.on('update-downloaded', (info) => {
-    // Restart the app and install the update
-    logger.info("update downloaded", info);
-    updater.install();
-});
+    // Check for updates
+    // `status` returns true if there is a new update available
+    updater.check((err, status) => {
+        if (!err && status) {
+            // Download the update
+            updater.download();
+        }
+    });
 
-// Access electrons autoUpdater
-updater.autoUpdater();
+    // When an update has been downloaded
+    updater.on('update-downloaded', (info) => {
+        // Restart the app and install the update
+        logger.info("update downloaded", info);
+        updater.install();
+    });
+
+    // Access electrons autoUpdater
+    logger.info(updater.autoUpdater);
+}catch(ex){
+    logger.error("update error", ex);
+}
