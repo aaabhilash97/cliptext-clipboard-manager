@@ -59,12 +59,14 @@ prefDb.find({ type: "settings" }).exec(function(e, r) {
         auto_start = r[0].auto_start;
         if(process.env.ENV !== "development" && auto_start){
             cliptext_auto_launch.isEnabled().then((enabled)=>{
+                logger.info("autostart", enabled);
                 if(!enabled) cliptext_auto_launch.enable();
+                createTray();
             });
         }else{
             cliptext_auto_launch.disable();
+            createTray();
         }
-        createTray();
     }
 });
 
@@ -76,6 +78,7 @@ function limit_fn(value) {
 function setAutostart() {
     prefDb.findOne({type: "settings"}, function(e, r){
         if(e) return logger.error("error setAutostart", e);
+        if(!r) r = {};
         auto_start = !(r.auto_start);
         upsert(prefDb, { type: "settings", auto_start: auto_start }, { type: "settings" });
     });
@@ -191,6 +194,8 @@ function upsert(db, values, condition) {
             if (err && err.errorType=='uniqueViolated'){
                 db.findOne(condition, function(e, obj){
                     if(e || !obj) return logger.error("findOne/upsert error", e);
+                    delete values.index;
+                    Object.assign(obj, values);
                     obj.date = new Date();
                     db.update(condition, obj, {upsert: true}, function(err) {
                         if (err) return logger.error("upsert update : ", err);
