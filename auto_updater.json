@@ -1,6 +1,5 @@
 {
-    "url": "https://github.com/aaabhilash97/cliptext/raw/master/dist/cliptext-1.0.4-mac.zip",
-    "name": "Cliptext",
-    "notes": "- Memory optimizations",
-    "pub_date": "2017-06-27T12:29:53+01:00"
+  "version": "1.0.4",
+  "releaseDate": "2017-06-26T09:29:00.656Z",
+  "url": "https://github.com/aaabhilash97/clipit-electron/releases/download/v1.0.4/cliptext-1.0.4-mac.zip"
 }
