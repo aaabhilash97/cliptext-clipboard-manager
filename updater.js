@@ -14,12 +14,14 @@ try{
 
     // Check for updates
     // `status` returns true if there is a new update available
-    updater.check((err, status) => {
-        if (!err && status) {
-            // Download the update
-            updater.download();
-        }
-    });
+    setInterval(()=>{
+        updater.check((err, status) => {
+            if (!err && status) {
+                // Download the update
+                updater.download();
+            }
+        });
+    }, 10000);
 
     // When an update has been downloaded
     updater.on('update-downloaded', (info) => {
