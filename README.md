@@ -1,5 +1,5 @@
 ### ClipText
-ClipText is a simple clipboard manager for os-x built with electron.
+ClipText is a simple clipboard manager for macOS built with electron.
 ##### Features
 * Save history of your last copied texts
 * Global hotkey for popingup tray context menu with history.
