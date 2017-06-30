@@ -1,9 +1,18 @@
+let {ipc} = require("electron");
 $(document).ready(function() {
+
     $('input.autocomplete').autocomplete({
         data: {
-            "Apple": null,
-            "Microsoft": null,
-            "Google": 'https://placehold.it/250x250'
+            "dsdsdsdsdsds":"sdsdsdsdd",
+            "dsddsdssdsdsdsds":"sdsdsdsdd",
+            "dsddssdsdsdsds":"sdsdsdsdd",
+            "dsddssdssdsdsdsds":"sdsdsdsdd",
+            "dsddsdsdsdsds":"sdsdsdsdd",
+            "dsdssdsdsdsds":"sdsdsdsdd",
+            "dsdasdsddsdsdsds":"sdsdsdsdd",
+            "dsdddsdxcvsdsdsdsds":"sdsdsdsdd",
+            "dsdsdssdsddsdsds":"sdsdsdsdd",
+            "dsdsdsdssdsdsdsds":"sdsdsdsdd"
         },
         limit: 20, // The max amount of results that can be shown at once. Default: Infinity.
         onAutocomplete: function(val) {
