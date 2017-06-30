@@ -3,3 +3,6 @@ signer.sh
 **/node_modules
 **/.DS_Store
 **/package-lock.json
+dist/github
+dist/mac
+dist/*.dmg
