@@ -3,7 +3,7 @@ var logger = require('electron-log');
 logger.transports.file.level = 'error';
 logger.transports.console.level = 'debug';
 logger.debug("init........");
-const { app } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 var Datastore = require('nedb');
 const fs = require('fs');
@@ -183,7 +183,28 @@ app.on('ready', () => {
     });
     clipboardWatch();
     require("./updater.js");
+    createWindow();
 });
+
+let clip_window;
+const createWindow = () => {
+    clip_window = new BrowserWindow({
+        width: 350,
+        height: 450,
+        frame: false,
+        fullscreenable: false,
+        resizable: true,
+        transparent: true
+    });
+    clip_window.loadURL(`file://${path.join(__dirname, 'public', 'index.html')}`);
+    clip_window.webContents.openDevTools();
+        // Hide the window when it loses focus
+    clip_window.on('blur', () => {
+        if (!clip_window.webContents.isDevToolsOpened()) {
+            clip_window.hide();
+        }
+    });
+};
 
 
 function upsert(db, values, condition) {
