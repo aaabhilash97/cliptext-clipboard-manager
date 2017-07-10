@@ -1,6 +1,6 @@
 {
   "name": "cliptext",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "cliptext for mac.",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "mac": {
       "icon": "./images/icon.icns"
     },
-    "asar": false
+    "asar": true
   },
   "author": "Abhilash Km (aaabhilash97@gmail.com)",
   "license": "ISC",

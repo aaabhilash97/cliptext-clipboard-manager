@@ -84,6 +84,8 @@ function setAutostart() {
 }
 
 function clickFn(r) {
+    if(r.text) clipboard.writeText(r.text);
+    if(r.use_label) clipboard.writeText(r.label);
     db.findOne({index: r.index_c}, function(err, obj) {
         if(err || !obj) return logger.error("clickFn err", err);
         clipboard.writeText(obj.text);
@@ -110,7 +112,9 @@ function createTray(params) {
                         label: item.text.slice(0, 50),
                         index_c: item.index,
                         click: clickFn,
-                        accelerator: `Command+${i}`
+                        accelerator: `Command+${i}`,
+                        use_label: (item.text.length<50?true:false),
+                        text: ((i<11 && !(item.text.length<50?true:false) )?item.text:undefined)
                     });
                     i++;
                 }
@@ -173,7 +177,7 @@ function createTray(params) {
 }
 
 const { globalShortcut } = require('electron');
-
+const cp = require("child_process");
 app.on('ready', () => {
     globalShortcut.register('CommandOrControl+Alt+h', () => {
         createTray({
@@ -181,9 +185,16 @@ app.on('ready', () => {
             popup: true
         });
     });
+    if(process.platform == "darwin"){
+        globalShortcut.register('CommandOrControl+Shift+l', () => {
+            cp.execFile("/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession", ["-suspend"], (e, r, s)=>{
+                logger.info(e, r, s);
+            });
+        });
+    }
     clipboardWatch();
     require("./updater.js");
-    createWindow();
+    if(process.env.ENV=="development" && process.platform != "darwin") createWindow();
 });
 
 let clip_window;
@@ -208,28 +219,30 @@ const createWindow = () => {
 
 
 function upsert(db, values, condition) {
-    db.count({}, function (err, count) {
-        if(err) return logger.error("count error", err);
-        values.index = count + 1;
-        db.insert(values, function(err) {
-            if (err && err.errorType=='uniqueViolated'){
-                db.findOne(condition, function(e, obj){
-                    if(e || !obj) return logger.error("findOne/upsert error", e);
-                    delete values.index;
-                    Object.assign(obj, values);
-                    obj.date = new Date();
-                    db.update(condition, obj, {upsert: true}, function(err) {
-                        if (err) return logger.error("upsert update : ", err);
-                        createTray();
+    try{
+        db.count({}, function (err, count) {
+            if(err) return logger.error("count error", err);
+            values.index = count + 1;
+            db.insert(values, function(err) {
+                if (err && err.errorType=='uniqueViolated'){
+                    db.findOne(condition, function(e, obj){
+                        if(e || !obj) return logger.error("findOne/upsert error", e);
+                        delete values.index;
+                        Object.assign(obj, values);
+                        obj.date = new Date();
+                        db.update(condition, obj, {upsert: true}, function(err) {
+                            if (err) return logger.error("upsert update : ", err);
+                            createTray();
+                        });
                     });
-                });
-            }else if(err){
-                logger.error("upsert insert : ", err);
-            }else{
-                createTray();
-            }
+                }else if(err){
+                    logger.error("upsert insert : ", err);
+                }else{
+                    createTray();
+                }
+            });
         });
-    });
+    }catch(ex){logger.error("upsert execption");}
 }
 
 function clipboardWatch() {
