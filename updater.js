@@ -39,3 +39,7 @@ try{
 }catch(ex){
     logger.error("update error", ex);
 }
+
+process.on('uncaughtException', function (error) {
+    logger.error("uncaughtException", error);
+});

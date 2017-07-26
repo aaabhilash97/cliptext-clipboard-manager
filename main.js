@@ -1,6 +1,6 @@
 //export XDG_CURRENT_DESKTOP=Unity
 var logger = require('electron-log');
-logger.transports.file.level = 'error';
+logger.transports.file.level = 'info';
 logger.transports.console.level = 'debug';
 logger.debug("init........");
 const { app, BrowserWindow } = require('electron');
@@ -79,6 +79,12 @@ function setAutostart() {
         if(e) return logger.error("error setAutostart", e);
         if(!r) r = {};
         auto_start = !(r.auto_start);
+        logger.info("setting auto start", auto_start);
+        if(auto_start){
+            cliptext_auto_launch.enable();
+        }else{
+            cliptext_auto_launch.disable();
+        }
         upsert(prefDb, { type: "settings", auto_start: auto_start }, { type: "settings" });
     });
 }
@@ -209,7 +215,7 @@ const createWindow = () => {
     });
     clip_window.loadURL(`file://${path.join(__dirname, 'public', 'index.html')}`);
     clip_window.webContents.openDevTools();
-        // Hide the window when it loses focus
+    // Hide the window when it loses focus
     clip_window.on('blur', () => {
         if (!clip_window.webContents.isDevToolsOpened()) {
             clip_window.hide();
