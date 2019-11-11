@@ -4,7 +4,7 @@
   "description": "clipboard manager",
   "main": "main.js",
   "scripts": {
-    "build": "build",
+    "build": "electron-builder",
     "start": "electron ."
   },
   "build": {
