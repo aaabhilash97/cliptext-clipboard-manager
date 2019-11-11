@@ -1,7 +1,7 @@
 {
   "name": "cliptext",
-  "version": "1.0.8",
-  "description": "cliptext for mac.",
+  "version": "2.0.0",
+  "description": "clipboard manager",
   "main": "main.js",
   "scripts": {
     "build": "build",
@@ -24,9 +24,11 @@
   "author": "Abhilash Km (aaabhilash97@gmail.com)",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^1.6.11",
+    "electron": "^1.8.8",
     "electron-builder": "^19.8.0",
-    "electron-rebuild": "^1.5.11"
+    "electron-rebuild": "^1.5.11",
+    "eslint": "^6.6.0",
+    "eslint-config-google": "^0.14.0"
   },
   "dependencies": {
     "auto-launch": "^5.0.1",

@@ -1,279 +1,301 @@
-//export XDG_CURRENT_DESKTOP=Unity
-var logger = require('electron-log');
-logger.transports.file.level = 'info';
-logger.transports.console.level = 'debug';
-logger.debug("init........");
-const { app, BrowserWindow } = require('electron');
+const {logger, packageInfos, clipboardDB, appName} = require('./config');
+const settings = require('./settings');
+const updater = require('./updater.js');
+
+const {app, Menu, Tray, clipboard, globalShortcut} = require('electron');
 const path = require('path');
-var Datastore = require('nedb');
-const fs = require('fs');
-const package_json = require("./package.json");
-const DB_DIR = path.join(getUserHome(), ".cliptext");
-try {
-    fs.accessSync(DB_DIR);
-} catch (err) {
-    fs.mkdirSync(DB_DIR);
-}
+const md5 = require('md5');
 
-let db = new Datastore({ filename: path.join(DB_DIR, '/.clipboarddb'), autoload: true });
-let prefDb = new Datastore({ filename: path.join(DB_DIR, '/.clipboarddbpref'), autoload: true });
-db.ensureIndex({ fieldName: 'id', unique: true }, function() {});
-prefDb.ensureIndex({ fieldName: 'type', unique: true }, function() {});
-db.ensureIndex({ fieldName: 'index', unique: true }, function() {});
-
-function getUserHome() {
-    return process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
-}
-
-var md5 = require('md5');
-var AutoLaunch = require('auto-launch');
-
-var cliptext_auto_launch = new AutoLaunch({
-    name: 'cliptext',
-    mac: {
-        useLaunchAgent: true
-    }
-});
-
-
-const { Menu, Tray, clipboard } = require('electron');
-
+/* Tray elements */
 let tray = null;
 
-function clearHistory() {
-    db.remove({}, { multi: true }, function(err, numRemoved) {
-        if (err) logger.error('clearHistory: ', err);
-        logger.debug("clear cliked", numRemoved);
-        createTray();
-    });
-}
-
-let clipbiard_limit = 10;
-let auto_start = true;
-
-prefDb.find({ type: "settings" }).exec(function(e, r) {
-    if (e) return logger.error("get settings", e);
-    if (r.length > 0) {
-        clipbiard_limit = r[0].limit;
-        auto_start = r[0].auto_start;
-        if(process.env.ENV !== "development" && auto_start){
-            cliptext_auto_launch.isEnabled().then((enabled)=>{
-                logger.info("autostart", enabled);
-                if(!enabled) cliptext_auto_launch.enable();
-                createTray();
-            });
-        }else{
-            cliptext_auto_launch.disable();
-            createTray();
-        }
-    }
-});
-
-function limit_fn(value) {
-    clipbiard_limit = value.value;
-    upsert(prefDb, { type: "settings", limit: value.value }, { type: "settings" });
-}
-
-function setAutostart() {
-    prefDb.findOne({type: "settings"}, function(e, r){
-        if(e) return logger.error("error setAutostart", e);
-        if(!r) r = {};
-        auto_start = !(r.auto_start);
-        logger.info("setting auto start", auto_start);
-        if(auto_start){
-            cliptext_auto_launch.enable();
-        }else{
-            cliptext_auto_launch.disable();
-        }
-        upsert(prefDb, { type: "settings", auto_start: auto_start }, { type: "settings" });
-    });
-}
-
-function clickFn(r) {
-    if(r.text) clipboard.writeText(r.text);
-    if(r.use_label) clipboard.writeText(r.label);
-    db.findOne({index: r.index_c}, function(err, obj) {
-        if(err || !obj) return logger.error("clickFn err", err);
-        clipboard.writeText(obj.text);
-    });
-}
-
-function createTray(params) {
-    if (!params) params = {};
-    try {
-        db.find({}).sort({ date: -1 }).limit(clipbiard_limit).exec(function(err, r) {
-            if (err) return logger.error("nedb find err", err);
-            let trayItems = [
-                { label: `cliptext v${package_json.version}          `, enabled: false },
-                { label: `____________________Clipboard History_________________________`, enabled: false }
-            ];
-
-            if (r.length === 0) {
-                trayItems.push({ label: 'clipboard is empty', enabled: false });
-            }
-            let i = 1;
-            for (let item of r) {
-                if (item.text) {
-                    trayItems.push({
-                        label: item.text.slice(0, 50),
-                        index_c: item.index,
-                        click: clickFn,
-                        accelerator: `Command+${i}`,
-                        use_label: (item.text.length<50?true:false),
-                        text: ((i<11 && !(item.text.length<50?true:false) )?item.text:undefined)
-                    });
-                    i++;
-                }
-            }
-            trayItems.push({
-                label: '_______________________________________________________________',
-                enabled: false
-            }, { label: 'Clear All', click: clearHistory, accelerator: 'Command+Alt+c' }, {
-                label: "Clipboard Limit",
-                submenu: [{
-                    label: '10',
-                    value: 10,
-                    click: limit_fn,
-                    type: "radio",
-                    checked: clipbiard_limit == 10 ? true : false
-                }, {
-                    label: '30',
-                    value: 30,
-                    click: limit_fn,
-                    type: "radio",
-                    checked: clipbiard_limit == 30 ? true : false
-                }, {
-                    label: '50',
-                    value: 50,
-                    click: limit_fn,
-                    type: "radio",
-                    checked: clipbiard_limit == 50 ? true : false
-                }, {
-                    label: 'unlimited',
-                    value: 300,
-                    click: limit_fn,
-                    type: "radio",
-                    checked: clipbiard_limit == 300 ? true : false
-
-                }]
-            }, {
-                label: "Settings", submenu: [{
-                    label: 'Launch on System startup',
-                    click: setAutostart,
-                    type: "radio",
-                    checked: auto_start?true:false
-                }]
-            },{ label: 'Quit', click: app.quit, accelerator: 'Command+Q' });
-            if(!tray || tray.isDestroyed()) tray = new Tray(path.join(__dirname, 'images/16x16.png'));
-            const contextMenu = Menu.buildFromTemplate(trayItems);
-            tray.setToolTip('This is my application.');
-            tray.setContextMenu(contextMenu);
-            tray.setTitle("cliptext");
-            tray.on('close', () => {
-                logger.debug('tray click');
-                createTray();
-            });
-            setTimeout(() => {
-                if (params.popup) tray.popUpContextMenu();
-            }, 300);
-        });
-    } catch (exc) {
-        logger.error(exc);
-    }
-}
-
-const { globalShortcut } = require('electron');
-const cp = require("child_process");
-app.on('ready', () => {
-    globalShortcut.register('CommandOrControl+Alt+h', () => {
-        createTray({
-            disabled: true,
-            popup: true
-        });
-    });
-    if(process.platform == "darwin"){
-        globalShortcut.register('CommandOrControl+Shift+l', () => {
-            cp.execFile("/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession", ["-suspend"], (e, r, s)=>{
-                logger.info(e, r, s);
-            });
-        });
-    }
-    clipboardWatch();
-    require("./updater.js");
-    if(process.env.ENV=="development" && process.platform != "darwin") createWindow();
-});
-
-let clip_window;
-const createWindow = () => {
-    clip_window = new BrowserWindow({
-        width: 350,
-        height: 450,
-        frame: false,
-        fullscreenable: false,
-        resizable: true,
-        transparent: true
-    });
-    clip_window.loadURL(`file://${path.join(__dirname, 'public', 'index.html')}`);
-    clip_window.webContents.openDevTools();
-    // Hide the window when it loses focus
-    clip_window.on('blur', () => {
-        if (!clip_window.webContents.isDevToolsOpened()) {
-            clip_window.hide();
-        }
-    });
+const emptyFillerMenu = {label: 'clipboard is empty', enabled: false};
+const titleMenu1 = {label: `${appName} v${packageInfos.version}          `,
+  enabled: false};
+const titleMenu2 = {label:
+                `_____________________Clipboard History________________________`,
+enabled: false};
+const menuSeparator = {
+  label: '__________________________________'+
+            '_____________________________',
+  enabled: false,
 };
 
+const clearAllMenu = {
+  label: 'Clear All',
+  click: clearAllHistory,
+  accelerator: 'Command+Alt+c',
+};
 
-function upsert(db, values, condition) {
-    try{
-        db.count({}, function (err, count) {
-            if(err) return logger.error("count error", err);
-            values.index = count + 1;
-            db.insert(values, function(err) {
-                if (err && err.errorType=='uniqueViolated'){
-                    db.findOne(condition, function(e, obj){
-                        if(e || !obj) return logger.error("findOne/upsert error", e);
-                        delete values.index;
-                        Object.assign(obj, values);
-                        obj.date = new Date();
-                        db.update(condition, obj, {upsert: true}, function(err) {
-                            if (err) return logger.error("upsert update : ", err);
-                            createTray();
-                        });
-                    });
-                }else if(err){
-                    logger.error("upsert insert : ", err);
-                }else{
-                    createTray();
-                }
-            });
+const quitMenu = {label: 'Quit',
+  click: app.quit,
+  accelerator: 'Command+Q',
+};
+
+const settingsMenu = {
+  label: 'Settings', submenu: [],
+};
+const settingsAutoStartEntry = {
+  label: 'Launch on System startup',
+  click: setAutostart,
+  type: 'radio',
+};
+settingsMenu.submenu.push(settingsAutoStartEntry);
+
+const settingsLimitEntry = {
+  label: 'Clipboard Limit',
+  submenu: [],
+};
+for (const limit of [30, 50, 100, 200, 400]) {
+  settingsLimitEntry.submenu.push({
+    label: String(limit),
+    value: limit,
+    click: setClipboardLimit,
+    type: 'radio',
+  });
+}
+settingsMenu.submenu.push(settingsLimitEntry);
+
+/* Tray elements  end */
+
+
+/**
+ * Clear history from database
+ */
+function clearAllHistory() {
+  clipboardDB.remove({}, {multi: true}, function(err, numRemoved) {
+    if (err) {
+      logger.error('Error in clearing history: ', err);
+    } else {
+      updateTray();
+    }
+  });
+}
+
+/**
+ * Set clipboard limit value
+ * @param {Number} value clipboard limit size
+ */
+async function setClipboardLimit(value) {
+  try {
+    await settings.set('clipboardLimit', value.value);
+  } catch (error) {
+    logger.error('setClipboardLimit error: ', error);
+  }
+}
+
+
+/**
+ * Set auto start
+ */
+async function setAutostart() {
+  try {
+    const value = !settingsAutoStartEntry.checked;
+    await settings.set('autoStart', value);
+  } catch (error) {
+    logger.error('setAutostart error: ', error);
+  }
+}
+
+/**
+ * get clipboard limit value from db
+ * @param {Number} value clipboard limit size
+ */
+async function getClipboardLimit() {
+  const clipboardLimit = await settings.get('clipboardLimit');
+  for (const limitEntry of settingsLimitEntry.submenu) {
+    if (limitEntry.value == clipboardLimit) {
+      limitEntry.checked = true;
+    }
+  }
+}
+
+
+/**
+ * get autostart from db
+ */
+async function getAutostart() {
+  const autoStart = await settings.get('autoStart');
+  settingsAutoStartEntry.checked= autoStart? true: false;
+}
+
+
+/**
+ * Read clipboard history from database
+ * @return {Promise}
+ */
+function getClipboardItems() {
+  return new Promise(async (resolve, reject)=>{
+    const clipboardLimit = await getClipboardLimit();
+    clipboardDB.find({}).sort({updated_at: -1}).limit(clipboardLimit).exec(
+        function(err, results) {
+          if (err) {
+            logger.error('DB clipboard find error: ', err);
+            return reject(err);
+          }
+          return resolve(results);
         });
-    }catch(ex){logger.error("upsert execption");}
+  });
 }
 
+/**
+ *
+ * @param {Any} r
+ */
+function historyClick(r) {
+  clipboardDB.findOne({_id: r._id}, function(err, result) {
+    if (err) {
+      return logger.error('[historyClick]Error in reading DB', err);
+    }
+    clipboard.writeText(result.text);
+  });
+}
+
+
+/**
+ *
+ * @param {Any} params
+ */
+async function createTray() {
+  try {
+    if (!tray || tray.isDestroyed()) {
+      tray = new Tray(path.join(__dirname, 'images/16x16.png'));
+    }
+    tray.setToolTip(packageInfos.description);
+    tray.setTitle(appName);
+  } catch (exception) {
+    logger.error('Exception in create tray: ', exception);
+  }
+}
+
+/**
+ *
+ * @param {Any} params
+ */
+async function updateTray(params) {
+  try {
+    if (!params) params = {};
+
+    await getAutostart();
+    await getClipboardLimit();
+
+    const results = await getClipboardItems();
+
+    const trayItems = [
+      titleMenu1, titleMenu2,
+    ];
+
+    if (results.length === 0) {
+      trayItems.push(emptyFillerMenu);
+    }
+    let i = 1;
+    for (const item of results) {
+      if (item.text && item._id) {
+        trayItems.push({
+          _id: item._id,
+          label: item.text.slice(0, 50),
+          click: historyClick,
+          accelerator: `Command+${i}`,
+        });
+        i++;
+      }
+    }
+    trayItems.push(
+        menuSeparator,
+        clearAllMenu,
+        settingsMenu,
+        quitMenu,
+    );
+
+    if (!tray || tray.isDestroyed()) {
+      createTray();
+    }
+    const contextMenu = Menu.buildFromTemplate(trayItems);
+    tray.setContextMenu(contextMenu);
+
+    setTimeout(() => {
+      if (params.popup) tray.popUpContextMenu();
+    }, 100);
+  } catch (exception) {
+    logger.error('Exception in update tray: ', exception);
+  }
+}
+
+
+/**
+ * Watch clipboard
+ */
 function clipboardWatch() {
-    let cur_clipboard = clipboard.readText();
-    createTray();
-    setInterval(() => {
-        let new_clip = clipboard.readText();
-        if (cur_clipboard !== new_clip) {
-            cur_clipboard = new_clip;
-            let doc = {
-                id: md5(cur_clipboard),
-                "text": cur_clipboard,
-                date: new Date()
-            };
-            upsert(db, doc, { id: doc.id });
-        }
-    }, 500);
+  let currentValue = clipboard.readText();
+  setInterval(async () => {
+    try {
+      const newValue = clipboard.readText();
+      if (currentValue !== newValue) {
+        currentValue = newValue;
+        await saveClipboard(currentValue);
+      }
+    } catch (error) {
+      logger.error('error in clipboard watch or saveToDb: ', err);
+    }
+  }, 200);
 }
 
-if (process.platform == "darwin" && process.env.ENV!="development") app.dock.hide();
+/**
+ * Save settings to database
+ * @param {String} text
+ * @return {Promise}
+ */
+function saveClipboard(text) {
+  return new Promise((resolve, reject)=>{
+    if (!text) {
+      return resolve();
+    }
+    const doc = {
+      'hash': md5(text),
+      'text': text,
+      'updated_at': new Date(),
+    };
+    clipboardDB.update(
+        {hash: doc.hash},
+        doc,
+        {upsert: true},
+        (err, numberOfUpdated, upsert)=> {
+          if (err) {
+            logger.error('Error in in update settings: ', err);
+            return reject(err);
+          }
+          if (upsert || numberOfUpdated) {
+            updateTray();
+          }
+          return resolve({});
+        });
+  });
+}
+
+
+if (process.platform == 'darwin' && process.env.ENV!='development') {
+  app.dock.hide();
+}
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
-    // On macOS it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+  // On macOS it is common for applications and their menu bar
+  // to stay active until the user quits explicitly with Cmd + Q
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+
+app.on('ready', () => {
+  globalShortcut.register('CommandOrControl+Alt+h', () => {
+    updateTray({
+      disabled: true,
+      popup: true,
+    });
+  });
+
+  clipboardWatch();
+  createTray();
+  updateTray();
+  updater.checkForUpdates();
 });
