@@ -12,9 +12,9 @@ let tray = null;
 const emptyFillerMenu = {label: 'clipboard is empty', enabled: false};
 const titleMenu1 = {label: `${appName} v${packageInfos.version}          `,
   enabled: false};
-const titleMenu2 = {label:
-                `_____________________Clipboard History________________________`,
-enabled: false};
+const titleMenu2 = {
+  label: `_____________________Clipboard History________________________`,
+  enabled: false};
 const menuSeparator = {
   label: '__________________________________'+
             '_____________________________',
@@ -79,6 +79,7 @@ function clearAllHistory() {
 async function setClipboardLimit(value) {
   try {
     await settings.set('clipboardLimit', value.value);
+    await updateTray();
   } catch (error) {
     logger.error('setClipboardLimit error: ', error);
   }
@@ -92,6 +93,7 @@ async function setAutostart() {
   try {
     const value = !settingsAutoStartEntry.checked;
     await settings.set('autoStart', value);
+    await updateTray();
   } catch (error) {
     logger.error('setAutostart error: ', error);
   }
@@ -99,15 +101,18 @@ async function setAutostart() {
 
 /**
  * get clipboard limit value from db
- * @param {Number} value clipboard limit size
+ * @return {Number}
  */
 async function getClipboardLimit() {
   const clipboardLimit = await settings.get('clipboardLimit');
   for (const limitEntry of settingsLimitEntry.submenu) {
     if (limitEntry.value == clipboardLimit) {
       limitEntry.checked = true;
+    } else {
+      limitEntry.checked = false;
     }
   }
+  return clipboardLimit;
 }
 
 
@@ -117,6 +122,7 @@ async function getClipboardLimit() {
 async function getAutostart() {
   const autoStart = await settings.get('autoStart');
   settingsAutoStartEntry.checked= autoStart? true: false;
+  return autoStart;
 }
 
 
