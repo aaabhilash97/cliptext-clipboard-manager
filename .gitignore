@@ -6,3 +6,4 @@ signer.sh
 dist/github
 dist/mac
 dist/*.dmg
+dist/
