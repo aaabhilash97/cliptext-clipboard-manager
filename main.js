@@ -16,8 +16,7 @@ const titleMenu2 = {
   label: `_____________________Clipboard History________________________`,
   enabled: false};
 const menuSeparator = {
-  label: '__________________________________'+
-            '_____________________________',
+  label: '______________________________________________________________',
   enabled: false,
 };
 
@@ -169,6 +168,9 @@ async function createTray() {
     }
     tray.setToolTip(packageInfos.description);
     tray.setTitle(appName);
+    tray.on('right-click', ()=>{
+      tray.popUpContextMenu();
+    });
   } catch (exception) {
     logger.error('Exception in create tray: ', exception);
   }
