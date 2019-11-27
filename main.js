@@ -10,11 +10,14 @@ const md5 = require('md5');
 let tray = null;
 
 const emptyFillerMenu = {label: 'clipboard is empty', enabled: false};
-const titleMenu1 = {label: `${appName} v${packageInfos.version}          `,
-  enabled: false};
+const titleMenu1 = {
+  label: `${appName} v${packageInfos.version}          `,
+  enabled: false,
+};
 const titleMenu2 = {
   label: `_____________________Clipboard History________________________`,
-  enabled: false};
+  enabled: false,
+};
 const menuSeparator = {
   label: '______________________________________________________________',
   enabled: false,
@@ -26,13 +29,11 @@ const clearAllMenu = {
   accelerator: 'Command+Alt+c',
 };
 
-const quitMenu = {label: 'Quit',
-  click: app.quit,
-  accelerator: 'Command+Q',
-};
+const quitMenu = {label: 'Quit', click: app.quit, accelerator: 'Command+Q'};
 
 const settingsMenu = {
-  label: 'Settings', submenu: [],
+  label: 'Settings',
+  submenu: [],
 };
 const settingsAutoStartEntry = {
   label: 'Launch on System startup',
@@ -56,7 +57,6 @@ for (const limit of [30, 50, 100, 200, 400]) {
 settingsMenu.submenu.push(settingsLimitEntry);
 
 /* Tray elements  end */
-
 
 /**
  * Clear history from database
@@ -83,7 +83,6 @@ async function setClipboardLimit(value) {
     logger.error('setClipboardLimit error: ', error);
   }
 }
-
 
 /**
  * Set auto start
@@ -114,26 +113,27 @@ async function getClipboardLimit() {
   return clipboardLimit;
 }
 
-
 /**
  * get autostart from db
  */
 async function getAutostart() {
   const autoStart = await settings.get('autoStart');
-  settingsAutoStartEntry.checked= autoStart? true: false;
+  settingsAutoStartEntry.checked = autoStart ? true : false;
   return autoStart;
 }
-
 
 /**
  * Read clipboard history from database
  * @return {Promise}
  */
 function getClipboardItems() {
-  return new Promise(async (resolve, reject)=>{
+  return new Promise(async (resolve, reject) => {
     const clipboardLimit = await getClipboardLimit();
-    clipboardDB.find({}).sort({updated_at: -1}).limit(clipboardLimit).exec(
-        function(err, results) {
+    clipboardDB
+        .find({})
+        .sort({updated_at: -1})
+        .limit(clipboardLimit)
+        .exec(function(err, results) {
           if (err) {
             logger.error('DB clipboard find error: ', err);
             return reject(err);
@@ -148,14 +148,17 @@ function getClipboardItems() {
  * @param {Any} r
  */
 function historyClick(r) {
-  clipboardDB.findOne({_id: r._id}, function(err, result) {
-    if (err) {
-      return logger.error('[historyClick]Error in reading DB', err);
-    }
-    clipboard.writeText(result.text);
-  });
+  if (r.use_label) {
+    clipboard.writeText(r.label);
+  } else {
+    clipboardDB.findOne({_id: r._id}, function(err, result) {
+      if (err) {
+        return logger.error('[historyClick]Error in reading DB', err);
+      }
+      clipboard.writeText(result.text);
+    });
+  }
 }
-
 
 /**
  *
@@ -168,7 +171,7 @@ async function createTray() {
     }
     tray.setToolTip(packageInfos.description);
     tray.setTitle(appName);
-    tray.on('right-click', ()=>{
+    tray.on('right-click', () => {
       tray.popUpContextMenu();
     });
   } catch (exception) {
@@ -189,9 +192,7 @@ async function updateTray(params) {
 
     const results = await getClipboardItems();
 
-    const trayItems = [
-      titleMenu1, titleMenu2,
-    ];
+    const trayItems = [titleMenu1, titleMenu2];
 
     if (results.length === 0) {
       trayItems.push(emptyFillerMenu);
@@ -199,21 +200,20 @@ async function updateTray(params) {
     let i = 1;
     for (const item of results) {
       if (item.text && item._id) {
-        trayItems.push({
+        const trayEntry = {
           _id: item._id,
           label: item.text.slice(0, 50),
           click: historyClick,
           accelerator: `Command+${i}`,
-        });
+        };
+        if (item.text.length <= 50) {
+          trayEntry.use_label = true;
+        }
+        trayItems.push(trayEntry);
         i++;
       }
     }
-    trayItems.push(
-        menuSeparator,
-        clearAllMenu,
-        settingsMenu,
-        quitMenu,
-    );
+    trayItems.push(menuSeparator, clearAllMenu, settingsMenu, quitMenu);
 
     if (!tray || tray.isDestroyed()) {
       createTray();
@@ -228,7 +228,6 @@ async function updateTray(params) {
     logger.error('Exception in update tray: ', exception);
   }
 }
-
 
 /**
  * Watch clipboard
@@ -254,20 +253,20 @@ function clipboardWatch() {
  * @return {Promise}
  */
 function saveClipboard(text) {
-  return new Promise((resolve, reject)=>{
+  return new Promise((resolve, reject) => {
     if (!text) {
       return resolve();
     }
     const doc = {
-      'hash': md5(text),
-      'text': text,
-      'updated_at': new Date(),
+      hash: md5(text),
+      text: text,
+      updated_at: new Date(),
     };
     clipboardDB.update(
         {hash: doc.hash},
         doc,
         {upsert: true},
-        (err, numberOfUpdated, upsert)=> {
+        (err, numberOfUpdated, upsert) => {
           if (err) {
             logger.error('Error in in update settings: ', err);
             return reject(err);
@@ -276,12 +275,12 @@ function saveClipboard(text) {
             updateTray();
           }
           return resolve({});
-        });
+        },
+    );
   });
 }
 
-
-if (process.platform == 'darwin' && process.env.ENV!='development') {
+if (process.platform == 'darwin' && process.env.ENV != 'development') {
   app.dock.hide();
 }
 // Quit when all windows are closed.
@@ -292,7 +291,6 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-
 
 app.on('ready', () => {
   globalShortcut.register('CommandOrControl+Alt+h', () => {
