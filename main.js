@@ -1,57 +1,57 @@
-const {logger, packageInfos, clipboardDB, appName} = require('./config');
-const settings = require('./settings');
-const updater = require('./updater.js');
+const { logger, packageInfos, clipboardDB, appName } = require("./config");
+const settings = require("./settings");
+const updater = require("./updater.js");
 
-const {app, Menu, Tray, clipboard, globalShortcut} = require('electron');
-const path = require('path');
-const md5 = require('md5');
+const { app, Menu, Tray, clipboard, globalShortcut } = require("electron");
+const path = require("path");
+const md5 = require("md5");
 
 /* Tray elements */
 let tray = null;
 
-const emptyFillerMenu = {label: 'clipboard is empty', enabled: false};
+const emptyFillerMenu = { label: "clipboard is empty", enabled: false };
 const titleMenu1 = {
   label: `${appName} v${packageInfos.version}          `,
-  enabled: false,
+  enabled: false
 };
 const titleMenu2 = {
   label: `_____________________Clipboard History________________________`,
-  enabled: false,
+  enabled: false
 };
 const menuSeparator = {
-  label: '______________________________________________________________',
-  enabled: false,
+  label: "______________________________________________________________",
+  enabled: false
 };
 
 const clearAllMenu = {
-  label: 'Clear All',
+  label: "Clear All",
   click: clearAllHistory,
-  accelerator: 'Command+Alt+c',
+  accelerator: "Command+Alt+c"
 };
 
-const quitMenu = {label: 'Quit', click: app.quit, accelerator: 'Command+Q'};
+const quitMenu = { label: "Quit", click: app.quit, accelerator: "Command+Q" };
 
 const settingsMenu = {
-  label: 'Settings',
-  submenu: [],
+  label: "Settings",
+  submenu: []
 };
 const settingsAutoStartEntry = {
-  label: 'Launch on System startup',
+  label: "Launch on System startup",
   click: setAutostart,
-  type: 'radio',
+  type: "radio"
 };
 settingsMenu.submenu.push(settingsAutoStartEntry);
 
 const settingsLimitEntry = {
-  label: 'Clipboard Limit',
-  submenu: [],
+  label: "Clipboard Limit",
+  submenu: []
 };
 for (const limit of [30, 50, 100, 200, 400]) {
   settingsLimitEntry.submenu.push({
     label: String(limit),
     value: limit,
     click: setClipboardLimit,
-    type: 'radio',
+    type: "radio"
   });
 }
 settingsMenu.submenu.push(settingsLimitEntry);
@@ -62,9 +62,9 @@ settingsMenu.submenu.push(settingsLimitEntry);
  * Clear history from database
  */
 function clearAllHistory() {
-  clipboardDB.remove({}, {multi: true}, function(err, numRemoved) {
+  clipboardDB.remove({}, { multi: true }, function(err, numRemoved) {
     if (err) {
-      logger.error('Error in clearing history: ', err);
+      logger.error("Error in clearing history: ", err);
     } else {
       updateTray();
     }
@@ -77,10 +77,10 @@ function clearAllHistory() {
  */
 async function setClipboardLimit(value) {
   try {
-    await settings.set('clipboardLimit', value.value);
+    await settings.set("clipboardLimit", value.value);
     await updateTray();
   } catch (error) {
-    logger.error('setClipboardLimit error: ', error);
+    logger.error("setClipboardLimit error: ", error);
   }
 }
 
@@ -90,10 +90,10 @@ async function setClipboardLimit(value) {
 async function setAutostart() {
   try {
     const value = !settingsAutoStartEntry.checked;
-    await settings.set('autoStart', value);
+    await settings.set("autoStart", value);
     await updateTray();
   } catch (error) {
-    logger.error('setAutostart error: ', error);
+    logger.error("setAutostart error: ", error);
   }
 }
 
@@ -102,7 +102,7 @@ async function setAutostart() {
  * @return {Number}
  */
 async function getClipboardLimit() {
-  const clipboardLimit = await settings.get('clipboardLimit');
+  const clipboardLimit = await settings.get("clipboardLimit");
   for (const limitEntry of settingsLimitEntry.submenu) {
     if (limitEntry.value == clipboardLimit) {
       limitEntry.checked = true;
@@ -117,7 +117,7 @@ async function getClipboardLimit() {
  * get autostart from db
  */
 async function getAutostart() {
-  const autoStart = await settings.get('autoStart');
+  const autoStart = await settings.get("autoStart");
   settingsAutoStartEntry.checked = autoStart ? true : false;
   return autoStart;
 }
@@ -130,16 +130,16 @@ function getClipboardItems() {
   return new Promise(async (resolve, reject) => {
     const clipboardLimit = await getClipboardLimit();
     clipboardDB
-        .find({})
-        .sort({updated_at: -1})
-        .limit(clipboardLimit)
-        .exec(function(err, results) {
-          if (err) {
-            logger.error('DB clipboard find error: ', err);
-            return reject(err);
-          }
-          return resolve(results);
-        });
+      .find({})
+      .sort({ updated_at: -1 })
+      .limit(clipboardLimit)
+      .exec(function(err, results) {
+        if (err) {
+          logger.error("DB clipboard find error: ", err);
+          return reject(err);
+        }
+        return resolve(results);
+      });
   });
 }
 
@@ -151,9 +151,9 @@ function historyClick(r) {
   if (r.use_label) {
     clipboard.writeText(r.label);
   } else {
-    clipboardDB.findOne({_id: r._id}, function(err, result) {
+    clipboardDB.findOne({ _id: r._id }, function(err, result) {
       if (err) {
-        return logger.error('[historyClick]Error in reading DB', err);
+        return logger.error("[historyClick]Error in reading DB", err);
       }
       clipboard.writeText(result.text);
     });
@@ -167,15 +167,15 @@ function historyClick(r) {
 async function createTray() {
   try {
     if (!tray || tray.isDestroyed()) {
-      tray = new Tray(path.join(__dirname, 'images/16x16.png'));
+      tray = new Tray(path.join(__dirname, "images/16x16.png"));
     }
     tray.setToolTip(packageInfos.description);
     tray.setTitle(appName);
-    tray.on('right-click', () => {
+    tray.on("right-click", () => {
       tray.popUpContextMenu();
     });
   } catch (exception) {
-    logger.error('Exception in create tray: ', exception);
+    logger.error("Exception in create tray: ", exception);
   }
 }
 
@@ -204,7 +204,7 @@ async function updateTray(params) {
           _id: item._id,
           label: item.text.slice(0, 50),
           click: historyClick,
-          accelerator: `Command+${i}`,
+          accelerator: `Command+${i}`
         };
         if (item.text.length <= 50) {
           trayEntry.use_label = true;
@@ -225,7 +225,7 @@ async function updateTray(params) {
       if (params.popup) tray.popUpContextMenu();
     }, 100);
   } catch (exception) {
-    logger.error('Exception in update tray: ', exception);
+    logger.error("Exception in update tray: ", exception);
   }
 }
 
@@ -242,7 +242,7 @@ function clipboardWatch() {
         await saveClipboard(currentValue);
       }
     } catch (error) {
-      logger.error('error in clipboard watch or saveToDb: ', err);
+      logger.error("error in clipboard watch or saveToDb: ", err);
     }
   }, 200);
 }
@@ -260,43 +260,43 @@ function saveClipboard(text) {
     const doc = {
       hash: md5(text),
       text: text,
-      updated_at: new Date(),
+      updated_at: new Date()
     };
     clipboardDB.update(
-        {hash: doc.hash},
-        doc,
-        {upsert: true},
-        (err, numberOfUpdated, upsert) => {
-          if (err) {
-            logger.error('Error in in update settings: ', err);
-            return reject(err);
-          }
-          if (upsert || numberOfUpdated) {
-            updateTray();
-          }
-          return resolve({});
-        },
+      { hash: doc.hash },
+      doc,
+      { upsert: true },
+      (err, numberOfUpdated, upsert) => {
+        if (err) {
+          logger.error("Error in in update settings: ", err);
+          return reject(err);
+        }
+        if (upsert || numberOfUpdated) {
+          updateTray();
+        }
+        return resolve({});
+      }
     );
   });
 }
 
-if (process.platform == 'darwin' && process.env.ENV != 'development') {
+if (process.platform == "darwin" && process.env.ENV != "development") {
   app.dock.hide();
 }
 // Quit when all windows are closed.
-app.on('window-all-closed', () => {
+app.on("window-all-closed", () => {
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
-  if (process.platform !== 'darwin') {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on('ready', () => {
-  globalShortcut.register('CommandOrControl+Alt+h', () => {
+app.on("ready", () => {
+  globalShortcut.register("CommandOrControl+Alt+h", () => {
     updateTray({
       disabled: true,
-      popup: true,
+      popup: true
     });
   });
 
@@ -304,4 +304,7 @@ app.on('ready', () => {
   createTray();
   updateTray();
   updater.checkForUpdates();
+  if (process.platform == "darwin" && process.env.ENV != "development") {
+    app.dock.hide();
+  }
 });
